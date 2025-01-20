@@ -268,7 +268,7 @@ class Dir_RCML(nn.Module):
 
         poster = nn.functional.softplus(torch.tensor([1, 0.15120968, 0.64112903, 0, 0.55645161, 0.1733871], dtype=torch.float32))
         #Dirichlet = dirichlet.Dirichlet(fuse_weight)
-        Dirichlet = dirichlet.Dirichlet((fuse_weight+poster))
+        Dirichlet = dirichlet.Dirichlet((fuse_weight+poster.cuda()))
         dir_fuse_weight = Dirichlet.sample()
 
 
