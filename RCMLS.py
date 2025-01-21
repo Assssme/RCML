@@ -23,7 +23,7 @@ class MLP(nn.Module):
         return h
 
 class EvidenceCollector(nn.Module):
-    def __init__(self, dims, num_classes,ratio=4):
+    def __init__(self, dims, num_classes):
         super(EvidenceCollector, self).__init__()
         self.num_layers = len(dims)
         self.net = nn.ModuleList()
@@ -32,16 +32,8 @@ class EvidenceCollector(nn.Module):
             self.net.append(nn.Linear(dims[i], dims[i + 1]))
             self.net.append(nn.ReLU())
             #self.net.append(nn.Dropout(0.1))
+        self.net.append(nn.Linear(dims[self.num_layers - 1], num_classes))
 
-        # ！！！不加MLP的话，这里就是一个线性层，evidence主要是loss那里体现
-        #self.net.append(nn.Linear(dims[self.num_layers - 1], dims[self.num_layers - 1]//ratio, bias=False))
-        #self.net.append(nn.Flatten())  # !!!
-        self.net.append(nn.Linear(dims[self.num_layers - 1], 256, bias=False))
-        self.net.append(nn.ReLU())
-        #self.net.append(nn.Dropout(0.1))
-        #self.net.append(nn.Linear(dims[self.num_layers - 1]//ratio, dims[self.num_layers - 1], bias=False))
-        self.net.append(nn.Linear(256,  num_classes, bias=False))
-        ##self.net.append(nn.Linear(dims[self.num_layers - 1], num_classes))
         self.net.append(nn.Softplus())
 
     def forward(self, x):
@@ -205,7 +197,7 @@ class Normal_RCML(nn.Module):
         evidences = dict()
         #attention = dict()
         evidences['wg'] = self.EvidenceCollectors[-1](X[0])
-        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_().cuda()
+        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_()#.cuda()
         #std = evidences['wg'].mul(0.5).exp_()#.cuda()
         std = torch.minimum(evidences['wg'].mul(0.5), torch.tensor(1.0))
         #std = torch.mean(evidences['wg'], dim=0)
@@ -250,8 +242,8 @@ class Dir_RCML(nn.Module):
         # get evidence
         evidences = dict()
         evidences['wg'] = self.EvidenceCollectors[-1](X[0])
-        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_().cuda()
-        std = evidences['wg'].mul(0.5).exp_().cuda()  # sigma方差
+        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_()#.cuda()
+        std = evidences['wg'].mul(0.5).exp_()#.cuda()  # sigma方差
         #std = torch.minimum(evidences['wg'].mul(0.5), torch.tensor(1.0))
         #std = torch.std(evidences['wg'],dim=0)
         #fuse_weight = nn.functional.softplus(fuse_weight.mul(self.e_parameters).add_(std))
@@ -268,7 +260,7 @@ class Dir_RCML(nn.Module):
 
         poster = nn.functional.softplus(torch.tensor([1, 0.15120968, 0.64112903, 0, 0.55645161, 0.1733871], dtype=torch.float32))
         #Dirichlet = dirichlet.Dirichlet(fuse_weight)
-        Dirichlet = dirichlet.Dirichlet((fuse_weight+poster.cuda()))
+        Dirichlet = dirichlet.Dirichlet((fuse_weight+poster))
         dir_fuse_weight = Dirichlet.sample()
 
 
@@ -309,8 +301,8 @@ class BaseMLP(nn.Module):
         #self.atten_para = nn.Parameter(torch.ones(num_views, dims[0][0]))
         #self.EvidenceCollectors = nn.ModuleList(
             #[EvidenceCollector(dims[i], self.num_classes) for i in range(self.num_views)])
-        self.fc1 = nn.Linear(dims[self.num_layers - 1][0], 256)  # 第一层
-        self.fc2 = nn.Linear(256,  num_classes)  # 输出层
+        self.fc1 = nn.Linear(dims[self.num_layers - 1][0], 128)  # 第一层
+        self.fc2 = nn.Linear(128,  num_classes)  # 输出层
         self.relu = nn.ReLU()
 
 
@@ -339,8 +331,8 @@ class BaseMLP_Share(nn.Module):
         #self.atten_para = nn.Parameter(torch.ones(dims[0][0]))
         self.num_classes = num_classes
         self.EvidenceCollector = EvidenceCollector(dims[0], self.num_classes)
-        self.fc1 = nn.Linear(dims[self.num_layers - 1][0], 256)  # 第一层
-        self.fc2 = nn.Linear(256, num_classes)  # 输出层
+        self.fc1 = nn.Linear(dims[self.num_layers - 1][0], 128)  # 第一层
+        self.fc2 = nn.Linear(128, num_classes)  # 输出层
         self.relu = nn.ReLU()
 
 
@@ -357,13 +349,13 @@ class BaseMLP_Share(nn.Module):
         return evidence #
 
 def KL(alpha, c):
-    beta = torch.ones((1, c)).cuda()
+    beta = torch.ones((1, c))#.cuda()
     S_alpha = torch.sum(alpha, dim=1, keepdim=True)
     S_beta = torch.sum(beta, dim=1, keepdim=True)
     lnB = torch.lgamma(S_alpha) - torch.sum(torch.lgamma(alpha), dim=1, keepdim=True)
     lnB_uni = torch.sum(torch.lgamma(beta), dim=1, keepdim=True) - torch.lgamma(S_beta)
-    dg0 = torch.digamma(S_alpha).cuda()
-    dg1 = torch.digamma(alpha).cuda()
+    dg0 = torch.digamma(S_alpha)#.cuda()
+    dg1 = torch.digamma(alpha)#.cuda()
     kl = torch.sum((alpha - beta) * (dg1 - dg0), dim=1, keepdim=True) + lnB + lnB_uni
     return kl
 
@@ -375,7 +367,7 @@ def ce_loss(p, alpha, c, global_step, annealing_step):
     A = torch.sum(label * (torch.digamma(S) - torch.digamma(alpha)), dim=1, keepdim=True)
     annealing_coef = min(1, global_step / annealing_step)
 
-    alp = (E * (1 - label) + 1).cuda()
+    alp = (E * (1 - label) + 1)#.cuda()
     B = annealing_coef * KL(alp, c)
 
     return (A + B)
@@ -492,8 +484,8 @@ class Classifier(nn.Module):
         self.num_layers = len(classifier_dims)
         self.fc = nn.ModuleList()
         for i in range(self.num_layers-1):
-            self.fc.append(nn.Linear(classifier_dims[i], classifier_dims[i+1]))
-        self.fc.append(nn.Linear(classifier_dims[self.num_layers-1], classes))
+            self.fc.append(nn.Linear(classifier_dims[i+1]))
+        self.fc.append(nn.Linear(classifier_dims[self.num_layers-1], classes, bias=False))
         self.fc.append(nn.Softplus())
 
     def forward(self, x):
