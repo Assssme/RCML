@@ -197,7 +197,7 @@ class Normal_RCML(nn.Module):
         evidences = dict()
         #attention = dict()
         evidences['wg'] = self.EvidenceCollectors[-1](X[0])
-        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_()#.cuda()
+        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_().cuda()
         #std = evidences['wg'].mul(0.5).exp_()#.cuda()
         std = torch.minimum(evidences['wg'].mul(0.5), torch.tensor(1.0))
         #std = torch.mean(evidences['wg'], dim=0)
@@ -242,8 +242,8 @@ class Dir_RCML(nn.Module):
         # get evidence
         evidences = dict()
         evidences['wg'] = self.EvidenceCollectors[-1](X[0])
-        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_()#.cuda()
-        std = evidences['wg'].mul(0.5).exp_()#.cuda()  # sigma方差
+        fuse_weight = torch.FloatTensor(evidences['wg'].size()).normal_().cuda()
+        std = evidences['wg'].mul(0.5).exp_().cuda()  # sigma方差
         #std = torch.minimum(evidences['wg'].mul(0.5), torch.tensor(1.0))
         #std = torch.std(evidences['wg'],dim=0)
         #fuse_weight = nn.functional.softplus(fuse_weight.mul(self.e_parameters).add_(std))
@@ -258,7 +258,7 @@ class Dir_RCML(nn.Module):
             pass
         #views_count = torch.tensor([4533, 4112, 4355, 4037, 4313, 4123], dtype=torch.float32)
 
-        poster = nn.functional.softplus(torch.tensor([1, 0.15120968, 0.64112903, 0, 0.55645161, 0.1733871], dtype=torch.float32))
+        poster = nn.functional.softplus(torch.tensor([1, 0.15120968, 0.64112903, 0, 0.55645161, 0.1733871], dtype=torch.float32)).cuda()
         #Dirichlet = dirichlet.Dirichlet(fuse_weight)
         Dirichlet = dirichlet.Dirichlet((fuse_weight+poster))
         dir_fuse_weight = Dirichlet.sample()
@@ -349,13 +349,13 @@ class BaseMLP_Share(nn.Module):
         return evidence #
 
 def KL(alpha, c):
-    beta = torch.ones((1, c))#.cuda()
+    beta = torch.ones((1, c)).cuda()
     S_alpha = torch.sum(alpha, dim=1, keepdim=True)
     S_beta = torch.sum(beta, dim=1, keepdim=True)
     lnB = torch.lgamma(S_alpha) - torch.sum(torch.lgamma(alpha), dim=1, keepdim=True)
     lnB_uni = torch.sum(torch.lgamma(beta), dim=1, keepdim=True) - torch.lgamma(S_beta)
-    dg0 = torch.digamma(S_alpha)#.cuda()
-    dg1 = torch.digamma(alpha)#.cuda()
+    dg0 = torch.digamma(S_alpha).cuda()
+    dg1 = torch.digamma(alpha).cuda()
     kl = torch.sum((alpha - beta) * (dg1 - dg0), dim=1, keepdim=True) + lnB + lnB_uni
     return kl
 
@@ -367,7 +367,7 @@ def ce_loss(p, alpha, c, global_step, annealing_step):
     A = torch.sum(label * (torch.digamma(S) - torch.digamma(alpha)), dim=1, keepdim=True)
     annealing_coef = min(1, global_step / annealing_step)
 
-    alp = (E * (1 - label) + 1)#.cuda()
+    alp = (E * (1 - label) + 1).cuda()
     B = annealing_coef * KL(alp, c)
 
     return (A + B)
