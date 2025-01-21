@@ -290,11 +290,11 @@ def main(times=0):
             # 创建writer对象
             writer = csv.writer(file)
             if model.name == 'Statistics_RCML':
-                writer.writerow(
+                print(
                     [models[i].name, acc[i][0].item(), mean_MRR[i].item(), mean_Recall[i].item(), acc[i][1].item(),
                      final_MRR[i].item(), final_Recall[i].item(), model.e_parameters.detach().tolist()])
             else:
-                writer.writerow(
+                print(
                     [models[i].name, acc[i][0].item(), mean_MRR[i].item(), mean_Recall[i].item(), acc[i][1].item(),
                      final_MRR[i].item(), final_Recall[i].item()])
     print('finish {} time!'.format(times))
@@ -344,7 +344,7 @@ def main(times=0):
 np.set_printoptions(precision=4, suppress=True)
 torch.autograd.set_detect_anomaly(True)
 #file_paths=[]
-for i in range(15):
+for i in range(5):
     #file_paths.append('/Users/liangchenmeijin/Desktop/计算机相关/RCML-main/1/data/true_Dir_RCML_{}.pkl'.format(i))
     params_list = []
     main(times=i)
